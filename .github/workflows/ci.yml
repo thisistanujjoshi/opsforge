@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  terraform:
+    name: Terraform fmt & validate (${{ matrix.env }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, staging, prod]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: fmt check
+        run: terraform fmt -check -recursive infra
+      - name: init (no backend)
+        working-directory: infra/envs/${{ matrix.env }}
+        run: terraform init -backend=false
+      - name: validate
+        working-directory: infra/envs/${{ matrix.env }}
+        run: terraform validate
