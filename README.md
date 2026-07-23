@@ -43,9 +43,9 @@ records the decision to supersede those here as reusable modules.
 ## Build phases
 
 - [x] **A** — Repo + reusable Terraform modules + process scaffolding
-- [ ] **B** — Observability: Prometheus + Grafana against the live NexusCommerce stack
-- [ ] **C** — Control-plane API: deploy/rollback with audit log + tests
-- [ ] **D** — Pipelines with security scanning + dual-pipeline comparison
+- [x] **B** — Observability: Prometheus + Grafana against the live NexusCommerce stack
+- [x] **C** — Control-plane API: deploy/rollback with audit log + tests
+- [x] **D** — Pipelines with security scanning + dual-pipeline comparison
 
 ## Terraform quick start
 

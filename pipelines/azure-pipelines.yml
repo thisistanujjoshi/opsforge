@@ -1,0 +1,56 @@
+# Azure DevOps mirror of .github/workflows/ci.yml — same stages, one outcome.
+# See docs/pipeline-comparison.md for the side-by-side.
+
+trigger:
+  branches:
+    include: [main]
+
+stages:
+  - stage: Validate
+    jobs:
+      - job: terraform
+        pool: { vmImage: ubuntu-latest }
+        strategy:
+          matrix:
+            dev: { env: dev }
+            staging: { env: staging }
+            prod: { env: prod }
+        steps:
+          - script: |
+              terraform fmt -check -recursive infra
+              cd infra/envs/$(env)
+              terraform init -backend=false && terraform validate
+            displayName: fmt + validate ($(env))
+
+      - job: control_plane
+        pool: { vmImage: ubuntu-latest }
+        steps:
+          - task: UseDotNet@2
+            inputs: { version: "10.0.x" }
+          - script: dotnet test control-plane/ControlPlane.Tests -c Release
+            displayName: control-plane tests
+
+  - stage: Security
+    dependsOn: Validate
+    jobs:
+      - job: trivy
+        pool: { vmImage: ubuntu-latest }
+        steps:
+          - script: |
+              curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+              trivy fs --scanners vuln,misconfig --severity CRITICAL,HIGH --exit-code 0 .
+            displayName: trivy scan (report-only)
+
+  - stage: Deploy
+    dependsOn: Security
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: helm_deploy
+        environment: staging   # approval gate lives on the environment
+        pool: { vmImage: ubuntu-latest }
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: echo "helm upgrade via control-plane or HelmDeploy@0 task"
+                  displayName: gated deploy (placeholder without cluster)

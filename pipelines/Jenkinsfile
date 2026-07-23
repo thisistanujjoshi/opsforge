@@ -1,0 +1,31 @@
+// Jenkins mirror of the same flow — validate, test, scan, gated deploy.
+pipeline {
+  agent any
+  stages {
+    stage('Validate') {
+      parallel {
+        stage('Terraform') {
+          steps {
+            sh '''
+              terraform fmt -check -recursive infra
+              for e in dev staging prod; do
+                (cd infra/envs/$e && terraform init -backend=false && terraform validate)
+              done
+            '''
+          }
+        }
+        stage('Control plane') {
+          steps { sh 'dotnet test control-plane/ControlPlane.Tests -c Release' }
+        }
+      }
+    }
+    stage('Security') {
+      steps { sh 'trivy fs --scanners vuln,misconfig --severity CRITICAL,HIGH --exit-code 0 .' }
+    }
+    stage('Deploy') {
+      when { branch 'main' }
+      input { message 'Deploy to staging?'; ok 'Deploy' }
+      steps { sh 'echo "helm upgrade via control-plane API"' }
+    }
+  }
+}
