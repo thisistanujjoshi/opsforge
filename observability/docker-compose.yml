@@ -1,0 +1,42 @@
+# OpsForge observability stack — Prometheus + Grafana for local/dev use.
+#
+#   docker compose up -d          # then open http://localhost:3000
+#
+# Scrapes the NexusCommerce services via their host-published ports, so it works
+# whether the platform runs under compose or bare `dotnet run`/`uvicorn`.
+# In Kubernetes this role is filled by kube-prometheus-stack + Loki (see README).
+
+name: opsforge-observability
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.6.6
+    environment:
+      # Anonymous viewer access for local dashboards; admin creds for edits.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus-data:
+  grafana-data:
